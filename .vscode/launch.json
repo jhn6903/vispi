@@ -17,6 +17,20 @@
             "request": "launch",
             "program": "${workspaceFolder}/conway.py",
             "console": "integratedTerminal"
+        },
+        {
+            "name": "waveform",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/waveform.py",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "conway2",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/conway2.py",
+            "console": "integratedTerminal"
         }
     ]
 }
