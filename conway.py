@@ -107,12 +107,12 @@ def get_position_from_fft(fft: np.ndarray, width: int, height: int) -> Tuple[int
     Map FFT bins radially: low frequencies (bass) in center, high frequencies at edges.
     Uses polar coordinates for mapping.
     """
-    # Ensure probabilities sum to 1 by using softmax-style normalization
+    # Ensure probabilities sum to 1 by using softmax normalization
     exp_fft = np.exp(fft - np.max(fft))  # Subtract max for numerical stability
-    fft_normalized = exp_fft / np.sum(exp_fft)
+    exp_fft = exp_fft / np.sum(exp_fft)  # Normalize to sum to 1
     
     # Choose a frequency bin based on its energy
-    chosen_bin = np.random.choice(64, p=fft_normalized)
+    chosen_bin = np.random.choice(64, p=exp_fft)
     
     # Map bin number (0-63) to radius (0 = center, 1 = edge)
     radius_factor = chosen_bin / 63.0
@@ -125,7 +125,7 @@ def get_position_from_fft(fft: np.ndarray, width: int, height: int) -> Tuple[int
     center_y = height / 2
     
     # Convert polar to cartesian coordinates
-    max_radius = min(width, height) / 2
+    max_radius = max(width, height) / 3
     x = int(center_x + np.cos(angle) * radius_factor * max_radius)
     y = int(center_y + np.sin(angle) * radius_factor * max_radius)
     
@@ -254,39 +254,6 @@ cols, rows = get_terminal_size()
 grid = create_grid(width=cols-2, height=rows-3)
 patterns_generated = 0
 
-def get_position_from_fft(fft: np.ndarray, width: int, height: int) -> Tuple[int, int]:
-    """
-    Map FFT bins radially: low frequencies (bass) in center, high frequencies at edges.
-    Uses polar coordinates for mapping.
-    """
-    # Ensure probabilities sum to 1 by using softmax-style normalization
-    exp_fft = np.exp(fft - np.max(fft))  # Subtract max for numerical stability
-    fft_normalized = exp_fft / np.sum(exp_fft)
-    
-    # Choose a frequency bin based on its energy
-    chosen_bin = np.random.choice(64, p=fft_normalized)
-    
-    # Map bin number (0-63) to radius (0 = center, 1 = edge)
-    radius_factor = chosen_bin / 63.0
-    
-    # Get random angle
-    angle = random.random() * 2 * np.pi
-    
-    # Calculate center of grid
-    center_x = width / 2
-    center_y = height / 2
-    
-    # Convert polar to cartesian coordinates
-    max_radius = min(width, height) / 2
-    x = int(center_x + np.cos(angle) * radius_factor * max_radius)
-    y = int(center_y + np.sin(angle) * radius_factor * max_radius)
-    
-    # Ensure coordinates are within bounds
-    x = max(0, min(width-1, x))
-    y = max(0, min(height-1, y))
-    
-    return x, y
-
 def display_status(kick_val: int, hat_val: float, total_energy: float, patterns_generated: int, fft: np.ndarray):
     """Display status line at the bottom of the terminal."""
     
@@ -344,13 +311,20 @@ try:
         hi_energy = get_high_energy(fft)
         total_energy = get_total_energy(fft)
         density = get_grid_density(grid)
-        
-        # Mass extinction event if energy is low but density is high
-        if total_energy < 0.2 and density > 0.3:
+        density_factor = 0.5
+        energy_factor = 10
+        # Probabilistic mass extinction based on energy and density
+        extinction_probability = np.clip(density*density_factor - total_energy*energy_factor, 0, 1)
+        if random.random() < extinction_probability:
             height, width = len(grid), len(grid[0])
             for y in range(height):
                 for x in range(width):
-                    if random.random() < 0.5:  # 50% chance to die
+                    center_x = width / 2
+                    # Distance factor: 0 at center, 1 at edges
+                    distance_factor = (abs(center_x - x) / center_x)**2
+                    # Reduce death probability for cells far from center
+                    death_probability = max(0, extinction_probability - distance_factor)
+                    if random.random() < death_probability:
                         grid[y][x] = 0
         
         patterns_to_generate = int((lo_energy / 100) * 5)
@@ -366,7 +340,7 @@ try:
         display_status(lo_energy, hi_energy, total_energy, patterns_generated, fft)
         grid = next_generation(grid)
         
-        time.sleep(0.01)
+        time.sleep(0.01/total_energy)
 
 except KeyboardInterrupt:
     print('\033[?25h', end='')  # Show cursor
