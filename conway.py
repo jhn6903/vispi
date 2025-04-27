@@ -335,7 +335,7 @@ try:
             patterns_generated += 1
 
         # Update and display the game state
-        use_color = hi_energy > 0.05
+        use_color = hi_energy > 0.10
         display_grid(grid, use_color=use_color)
         display_status(lo_energy, hi_energy, total_energy, patterns_generated, fft)
         grid = next_generation(grid)
