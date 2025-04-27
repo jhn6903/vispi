@@ -17,6 +17,13 @@
             "request": "launch",
             "program": "${workspaceFolder}/conway.py",
             "console": "integratedTerminal"
+        },
+        {
+            "name": "conwayhelper",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/conwayhelper.py",
+            "console": "integratedTerminal"
         }
     ]
 }
