@@ -5,13 +5,18 @@ import time
 def check_blackhole_audio():
     p = pyaudio.PyAudio()
     
-    # Find BlackHole device
+    # Find BlackHole device and print its capabilities
     blackhole_index = None
     for i in range(p.get_device_count()):
         dev_info = p.get_device_info_by_index(i)
         if 'BlackHole' in dev_info['name']:
             blackhole_index = i
             print(f"Found BlackHole at index {i}")
+            print("Device Info:")
+            print(f"  Name: {dev_info['name']}")
+            print(f"  Max Input Channels: {dev_info['maxInputChannels']}")
+            print(f"  Max Output Channels: {dev_info['maxOutputChannels']}")
+            print(f"  Default Sample Rate: {dev_info['defaultSampleRate']}")
             break
     
     if blackhole_index is None:
