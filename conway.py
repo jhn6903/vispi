@@ -319,6 +319,9 @@ try:
             height, width = len(grid), len(grid[0])
             for y in range(height):
                 for x in range(width):
+                    # Skip cells at the boundaries
+                    if x == 0 or x == width-1 or y == 0 or y == height-1:
+                        continue
                     center_x = width / 2
                     # Distance factor: 0 at center, 1 at edges
                     distance_factor = (abs(center_x - x) / center_x)**2
