@@ -2,6 +2,10 @@
 
 A collection of Python scripts for Raspberry Pi that react to audio input, drawing bar charts, waveforms, text animations, and more—either in the terminal or on small attached displays.
 
+## Resources
+- [rpi image](https://drive.google.com/file/d/1rH2YuP0mFvTjTMQnb0vNpmKJKPeMZo-3/view?ts=682412a7)
+- [vispi2 init](https://docs.google.com/document/d/1ER7_tTq0OyI8gDhiiG17zMWlnprJ0Ygq7cK71soKqBY/edit?tab=t.0#heading=h.du8nta6zqtti)
+
 ---
 
 ## 📋 Table of Contents
@@ -37,19 +41,18 @@ A collection of Python scripts for Raspberry Pi that react to audio input, drawi
 ## 🚀 Installation
 1. **Clone the repo**
     ```bash
-    git clone git@github.com:jhn6903/vispi.git
-    cd vispi
+    sudo apt-get update
+    sudo apt install -y git
+    git clone https://github.com/jhn6903/vispi.git
     ```
 
-2. **Set up a virtual environment** (recommended)
-    ```bash
-    python3 -m venv venv
-    source venv/bin/activate
-    ```
+2. Update cmdline.txt and config.txt as some properties are specific to your pi **and pi will not boot unless everything is correct.**
+See [cmdline.txt](./setup/boot/firmware/cmdline.txt) and [config.txt](./setup/boot/firmware/config.txt)
 
-3. **Install Python dependencies**
+3. Run setup script
     ```bash
-    pip install -r requirements.txt
+    cd vispi/setup
+    . ./setup.sh
     ```
 
 ---
