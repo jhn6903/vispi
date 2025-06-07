@@ -30,6 +30,7 @@ A collection of Python scripts for Raspberry Pi that react to audio input, drawi
 - **Hardware**: Raspberry Pi (3, 4, Zero W) with audio input (built‑in or USB interface) and optional small display (OLED/LCD)
 - **OS**: Raspberry Pi OS (32‑bit or 64‑bit)
 - **Python**: 3.7 or newer
+- **PortAudio**: `brew install portaudio`
 
 ---
 
@@ -72,6 +73,12 @@ A collection of Python scripts for Raspberry Pi that react to audio input, drawi
     ```
 
 ---
+
+## Simulator Setup (macOS)
+    `brew install sox`
+    Install [BlackHole](https://existential.audio/blackhole/) 
+    [Setup Multi-Output Device in BlackHole](https://github.com/ExistentialAudio/BlackHole/wiki/Multi-Output-Device)
+    run simtest.py to test
 
 ## ▶️ Usage
 Each script in `/` has its own header with run instructions. Example:
