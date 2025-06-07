@@ -54,7 +54,7 @@ x_offset = (FB_WIDTH - WIDTH) // 2
 y_offset = (FB_HEIGHT - HEIGHT) // 2
 
 # === Load text pool ===
-with open("/home/vispi/visualizers/out_there.txt") as f:
+with open("./out_there.txt") as f:
     extra_words = [line.strip() for line in f if line.strip()]
 glitch_chars = list("!@#$%&*()_-+=<>?;:^")
 
