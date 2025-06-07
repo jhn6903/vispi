@@ -21,7 +21,7 @@ colors = [f"\033[9{c}m" for c in range(1, 7)]
 RESET = "\033[0m"
 
 # === Load Lyrics
-with open("/home/vispi/visualizers/out_there.txt") as f:
+with open("./out_there.txt") as f:
     lines = [line.strip() for line in f if line.strip()]
 line_index = 0
 
