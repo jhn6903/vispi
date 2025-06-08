@@ -5,6 +5,7 @@ import gc
 import logging
 import psutil
 import os
+import subprocess
 from datetime import datetime
 from pathlib import Path
 from scipy.ndimage import median_filter
@@ -23,6 +24,57 @@ gc_collection_time = 0
 
 # Performance tracking
 process = psutil.Process(os.getpid())
+
+# V3D debug state
+v3d_debug_file = "/sys/kernel/debug/dri/0/v3d_regs"
+
+def get_v3d_debug_info():
+    """Read V3D GPU debug information"""
+    try:
+        if not os.path.exists(v3d_debug_file):
+            return None
+            
+        with open(v3d_debug_file, 'r') as f:
+            regs = f.read()
+            
+        # Parse key registers
+        info = {}
+        for line in regs.splitlines():
+            try:
+                # Handle different register formats:
+                # CT0CA=0x12345678
+                # CT0CA: 0x12345678
+                # CT0CA 0x12345678
+                if '=' in line:
+                    reg, value = line.split('=', 1)
+                elif ':' in line:
+                    reg, value = line.split(':', 1)
+                else:
+                    parts = line.split()
+                    if len(parts) >= 2:
+                        reg, value = parts[0], parts[1]
+                    else:
+                        continue
+                
+                reg = reg.strip()
+                value = value.strip()
+                
+                # Only process registers we care about
+                if reg in ['CT0CA', 'CT0EA', 'CT1CA', 'CT1EA']:
+                    # Handle hex values with or without 0x prefix
+                    if value.startswith('0x'):
+                        info[reg] = int(value[2:], 16)
+                    else:
+                        info[reg] = int(value, 16)
+                        
+            except (ValueError, IndexError) as e:
+                logger.debug(f"Failed to parse V3D register line: {line} - {e}")
+                continue
+                
+        return info
+    except Exception as e:
+        logger.warning(f"Failed to read V3D debug info: {e}")
+        return None
 
 def gc_callback(phase, info):
     global gc_start_time, gc_collection_count, gc_collection_time
@@ -66,7 +118,7 @@ def setup_logging():
 logger = setup_logging()
 
 class BaseVisualizer:
-    def __init__(self):
+    def __init__(self, debug=False):
         # Terminal setup
         self.cols, self.rows = get_terminal_size()
         
@@ -91,11 +143,27 @@ class BaseVisualizer:
         self.slow_frames = 0
         self.total_slow_frame_time = 0
         
+        # V3D GPU tracking
+        self.v3d_busy_frames = 0
+        self.v3d_idle_frames = 0
+
+        self.debug = debug
+        
         # Derived classes can add their own state here
         self.setup()
         
-        logger.info(f"Visualizer initialized with {self.cols}x{self.rows} terminal size")
-        logger.info(f"System memory: {psutil.virtual_memory().total / (1024*1024):.0f}MB")
+        if self.debug:
+            logger.info(f"Visualizer initialized with {self.cols}x{self.rows} terminal size")
+            logger.info(f"System memory: {psutil.virtual_memory().total / (1024*1024):.0f}MB")
+        
+        # Check if V3D debug is available and enabled
+        if os.path.exists(v3d_debug_file):
+            if self.debug:
+                logger.info("V3D GPU debugging enabled")
+            else:
+                logger.debug("V3D GPU debugging available but disabled (pass v3d_debug=True to enable)")
+        else:
+            logger.debug("V3D GPU debugging not available")
     
     def setup(self):
         """Override this method to initialize visualizer-specific state"""
@@ -135,6 +203,9 @@ class BaseVisualizer:
     
     def log_performance_metrics(self):
         """Log performance metrics for the current frame"""
+        if not self.debug:
+            return
+            
         current_time = time.time()
         frame_time = current_time - self.last_frame_time
         
@@ -143,10 +214,16 @@ class BaseVisualizer:
             self.slow_frames += 1
             self.total_slow_frame_time += frame_time
             mem_info = process.memory_info()
+            
+            # Get V3D debug info if available
+            v3d_info = get_v3d_debug_info() if self.debug else None
+            gpu_status = "GPU busy" if v3d_info and v3d_info.get('CT0CA') != v3d_info.get('CT0EA') else "GPU idle"
+            
             logger.warning(
                 f"Slow frame detected: {frame_time:.1f}s (expected {FRAME_DELAY:.3f}s)\n"
                 f"  Memory: {mem_info.rss / (1024*1024):.0f}MB RSS\n"
-                f"  System memory: {psutil.virtual_memory().percent}% used"
+                f"  System memory: {psutil.virtual_memory().percent}% used\n"
+                f"  GPU status: {gpu_status}"
             )
         
         self.frame_times.append(frame_time)
@@ -157,6 +234,15 @@ class BaseVisualizer:
         
         avg_frame_time = sum(self.frame_times) / len(self.frame_times)
         fps = 1.0 / avg_frame_time if avg_frame_time > 0 else 0
+        
+        # Update V3D GPU stats
+        if self.debug:
+            v3d_info = get_v3d_debug_info()
+            if v3d_info:
+                if v3d_info.get('CT0CA') != v3d_info.get('CT0EA'):
+                    self.v3d_busy_frames += 1
+                else:
+                    self.v3d_idle_frames += 1
         
         # Log frame time and GC stats
         logger.debug(
@@ -172,6 +258,9 @@ class BaseVisualizer:
     
     def print_gc_stats(self):
         """Print GC statistics collected during runtime"""
+        if not self.debug:
+            return
+            
         if gc_collection_count > 0:
             stats_msg = "\nGC Statistics:\n"
             stats_msg += f"Total collections: {gc_collection_count}\n"
@@ -185,10 +274,20 @@ class BaseVisualizer:
             frame_msg += f"Total slow frame time: {self.total_slow_frame_time:.1f}s\n"
             frame_msg += f"Average slow frame time: {(self.total_slow_frame_time/self.slow_frames):.1f}s\n"
             logger.info(frame_msg)
+            
+        if self.debug:
+            total_frames = self.v3d_busy_frames + self.v3d_idle_frames
+            if total_frames > 0:
+                gpu_msg = "\nGPU Statistics:\n"
+                gpu_msg += f"Total frames: {total_frames}\n"
+                gpu_msg += f"GPU busy frames: {self.v3d_busy_frames} ({self.v3d_busy_frames/total_frames*100:.1f}%)\n"
+                gpu_msg += f"GPU idle frames: {self.v3d_idle_frames} ({self.v3d_idle_frames/total_frames*100:.1f}%)\n"
+                logger.info(gpu_msg)
     
     def run(self):
         """Main loop that handles audio processing and drawing"""
-        logger.info("Starting main loop")
+        if self.debug:
+            logger.info("Starting main loop")
         
         try:
             while True:
@@ -213,14 +312,16 @@ class BaseVisualizer:
                 time.sleep(FRAME_DELAY)
                 
         except KeyboardInterrupt:
-            logger.info("Visualizer stopped by user")
+            if self.debug:
+                logger.info("Visualizer stopped by user")
             print("\nVisualizer stopped.")
             self.stream.stop_stream()
             self.stream.close()
             self.p.terminate()
             self.print_gc_stats()
         except Exception as e:
-            logger.error(f"Error in main loop: {str(e)}", exc_info=True)
+            if self.debug:
+                logger.error(f"Error in main loop: {str(e)}", exc_info=True)
             raise
     
     def cleanup(self):
