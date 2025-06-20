@@ -8,12 +8,13 @@ from scipy.ndimage import median_filter
 
 wave_chars = ['▁', '▂', '▃', '▄', '▅', '▆', '▇', '█']
 
-# === AUDIO CONFIG ===
-CHUNK = 1024
-RATE = 44100
+# === Audio Configuration ===
+CHUNK = 2048
+RATE = 48000
 FORMAT = pyaudio.paInt16
 CHANNELS = 2
-INPUT_INDEX = 1
+INPUT_INDEX = 1  # Default to index 1, can be changed
+OUTPUT_INDEX = 1  # Default to index 0 for output
 
 # === TERMINAL CONFIG ===
 def get_terminal_size():
