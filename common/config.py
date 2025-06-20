@@ -2,11 +2,12 @@ import shutil
 import pyaudio
 
 # === Audio Configuration ===
-CHUNK = 1024
-RATE = 44100
+CHUNK = 2048
+RATE = 48000
 FORMAT = pyaudio.paInt16
 CHANNELS = 2
-INPUT_INDEX = 1
+INPUT_INDEX = 1  # Default to index 1, can be changed
+OUTPUT_INDEX = 1  # Default to index 0 for output
 
 # === Terminal Configuration ===
 def get_terminal_size():

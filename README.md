@@ -21,6 +21,14 @@ A collection of Python scripts for Raspberry Pi that react to audio input, drawi
 
 ---
 
+## Profiling
+BaseVisualizer has a debug constructor parameter
+You can also run `htop -d 1` in terminal to see system level utilization
+
+
+
+---
+
 ## ✨ Features
 - Real‑time FFT bar charts and waveforms
 - ASCII and Unicode character visualizations
