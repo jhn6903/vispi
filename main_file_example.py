@@ -21,7 +21,6 @@ def main_loop(data):
     if data["is_silent"]:
         print("\033[2J\033[H", end="")
         print("Waiting for audio...")
-        time.sleep(1/30)
         return
     
     # Clear and show energy
@@ -44,4 +43,4 @@ def main_loop(data):
     
 
 # === RUN ===
-engine.run(engine_data, main_loop)
+engine.run(engine_data, main_loop, fps=30)

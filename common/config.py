@@ -1,12 +1,14 @@
 import shutil
 import pyaudio
 
+possible_chunk_sizes = [1024, 2048, 4096, 8192, 16384]
+
 # === Audio Configuration ===
 interface_configs = {
     "default": {
         "chunk_size": 2048,
         "sample_rate": 48000,
-        "format": pyaudio.paInt16,
+        "format": pyaudio.paFloat32,
         "channels": 2,
         "input_index": 1,
         "output_index": 1,
