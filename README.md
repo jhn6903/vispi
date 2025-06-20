@@ -32,6 +32,10 @@ The following visualizers use engine:
 When refactoring existing visualizers or creating new ones, add `main_file_example.py` as context to the AI.
 It should be able to rock with just this example.
 
+YOU SHOULD NOT NEED TO CHANGE ANYTHING IN ENGINE. If you want to change something in engine, consider that it will change
+all visualizers. Engine does have flexibility for different versions of audio processing, but most of engine's responsibilities
+should not need to differ across visualizers.
+
 ---
 
 ## Profiling
