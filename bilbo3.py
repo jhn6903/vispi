@@ -71,8 +71,8 @@ def main_loop(data):
     low_energy = data["low_energy"]
     high_energy = data["high_energy"]
     total_energy = data["total_energy"]
-    snare_val = data["snare_val"]
-    hat_val = data["hat_val"]
+    snare_val = data["snare_energy"]
+    hat_val = data["hat_energy"]
     samples = data["samples"]
 
     if is_silent:

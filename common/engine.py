@@ -47,8 +47,9 @@ def _default_process_audio(stream, config, prev_fft):
         "low_energy": np.mean(fft[:8]),
         "high_energy": np.mean(fft[32:]),
         "total_energy": np.mean(fft),
-        "snare_val": fft[20],
-        "hat_val": fft[-1],
+        "kick_energy": fft[8],
+        "snare_energy": fft[20],
+        "hat_energy": fft[-1],
     }
 
     return output
