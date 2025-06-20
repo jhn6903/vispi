@@ -75,15 +75,68 @@ def _get_processor(processor_type: str = "default"):
         raise ValueError(f"Processor {processor_type} not found")
 
 def _default_process_audio(stream, config, prev_fft):
-    SMOOTHING = 0.5
+    SMOOTHING = 0.2
 
     data = stream.read(config["chunk_size"], exception_on_overflow=True)
-    samples = np.frombuffer(data, dtype=np.int16)[::2]
+    samples = np.frombuffer(data, dtype=config["np_format"])[::2]
     is_silent = np.max(np.abs(samples)) < 100
 
     fft = np.abs(np.fft.fft(samples))[:64]
     fft = median_filter(fft, size=3)
-    fft = fft / (np.max(fft) + 1e-6)
+    
+    # Percentile-based normalization
+    if not hasattr(_default_process_audio, 'reference_level'):
+        _default_process_audio.reference_level = 1000.0
+    
+    current_95th = np.percentile(fft, 95)
+    decay_rate = 0.999  # How fast to adapt to new levels
+    _default_process_audio.reference_level = (
+        decay_rate * _default_process_audio.reference_level + 
+        (1 - decay_rate) * current_95th
+    )
+    
+    fft = np.clip(fft / (_default_process_audio.reference_level + 1e-6), 0, 1)
+    
+    low_energy = np.mean(fft[:8])
+
+    # Define frequency bands for percussion elements
+    # Assuming 44.1kHz sample rate, 1024 chunk size -> each bin ≈ 43Hz
+    kick_min = 1
+    kick_max = 13
+    snare_max = 55
+    hat_max = 64
+    kick_range = slice(kick_min, kick_max)  
+    snare_range = slice(kick_max+1, snare_max)
+    hat_range = slice(snare_max+1, hat_max)
+    
+    # Initialize previous percussion energies if first run
+    if not hasattr(_default_process_audio, 'prev_percussion'):
+        _default_process_audio.prev_percussion = {
+            'kick': 0.0,
+            'snare': 0.0, 
+            'hat': 0.0
+        }
+    prev_perc = _default_process_audio.prev_percussion
+
+    # Calculate current energy levels for each percussion element
+    kick_energy_current = np.mean(fft[kick_range])
+    snare_energy_current = np.mean(fft[snare_range])
+    hat_energy_current = np.mean(fft[hat_range])
+
+    # Transient detection: compare current vs previous energy
+    # Use ratio-based detection with minimum threshold
+    low_end_kick_coeff = 0.35
+    kick_ratio = np.clip(((kick_energy_current + low_energy*low_end_kick_coeff) / (prev_perc['kick'] + 1e-6))-1, 0, 1)
+    snare_ratio = np.clip((snare_energy_current / (prev_perc['snare'] + 1e-6))-1, 0, 1) 
+    hat_ratio = np.clip((hat_energy_current / (prev_perc['hat'] + 1e-6))-1, 0, 1)
+
+    
+    # Update previous energies with conditional smoothing
+    perc_smoothing = 0.96
+    prev_perc['kick'] = perc_smoothing * prev_perc['kick'] + (1 - perc_smoothing) * kick_energy_current
+    prev_perc['snare'] = perc_smoothing * prev_perc['snare'] + (1 - perc_smoothing) * snare_energy_current
+    prev_perc['hat'] = perc_smoothing * prev_perc['hat'] + (1 - perc_smoothing) * hat_energy_current
+    
     fft = SMOOTHING * prev_fft + (1 - SMOOTHING) * fft
 
     output = {
@@ -91,12 +144,12 @@ def _default_process_audio(stream, config, prev_fft):
         "samples": samples,
         "fft": fft,
         "prev_fft": fft.copy(),
-        "low_energy": np.mean(fft[:8]),
+        "low_energy": low_energy,
         "high_energy": np.mean(fft[32:]),
         "total_energy": np.mean(fft),
-        "kick_energy": fft[8],
-        "snare_energy": fft[20],
-        "hat_energy": fft[-1],
+        "kick_energy": kick_ratio,
+        "snare_energy": snare_ratio,
+        "hat_energy": hat_ratio,
     }
 
     return output

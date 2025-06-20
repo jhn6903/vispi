@@ -11,6 +11,7 @@ from common import engine
 engine_data = engine.initialize(
     interface_type="focusrite2i4",
     processor_type="default",
+    debug=False
 )
 cols = engine_data["cols"]
 rows = engine_data["rows"]
@@ -83,7 +84,6 @@ def main_loop(data):
         state["explosion_active"] = False
         state["explosion_cooldown"] = 0
         sys.stdout.flush()
-        time.sleep(1 / 30)
         return
 
     print("\033[2J\033[H", end="")
