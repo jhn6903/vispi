@@ -21,6 +21,29 @@ A collection of Python scripts for Raspberry Pi that react to audio input, drawi
 
 ---
 
+### Engine
+Engine module sits in `common.engine`.
+
+The following visualizers use engine:
+- `bilbo3.py`
+- `main_file_example.py`
+
+`main_file_example.py` is an extremely barebones visualizer that shows how a visualizer can be built using engine.
+When refactoring existing visualizers or creating new ones, add `main_file_example.py` as context to the AI.
+It should be able to rock with just this example.
+
+YOU SHOULD NOT NEED TO CHANGE ANYTHING IN ENGINE. If you want to change something in engine, consider that it will change
+all visualizers. Engine does have flexibility for different versions of audio processing, but most of engine's responsibilities
+should not need to differ across visualizers.
+
+---
+
+## Profiling
+BaseVisualizer has a debug constructor parameter
+You can also run `htop -d 1` in terminal to see system level utilization
+
+---
+
 ## ✨ Features
 - Real‑time FFT bar charts and waveforms
 - ASCII and Unicode character visualizations
