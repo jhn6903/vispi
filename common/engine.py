@@ -77,7 +77,24 @@ def _get_processor(processor_type: str = "default"):
 def _default_process_audio(stream, config, prev_fft):
     SMOOTHING = 0.2
 
-    data = stream.read(config["chunk_size"], exception_on_overflow=True)
+    try:
+        data = stream.read(config["chunk_size"], exception_on_overflow=True)
+    except Exception as e:
+        print(f"Error reading audio stream: {e}")
+        if logger:
+            logger.error(f"Error reading audio stream: {e}")
+        return {
+            "is_silent": True,
+            "samples": np.zeros(config["chunk_size"]),
+            "fft": np.zeros(64),
+            "prev_fft": prev_fft,
+            "low_energy": 0,
+            "high_energy": 0,
+            "total_energy": 0,
+            "kick_energy": 0,
+            "snare_energy": 0,
+            "hat_energy": 0,
+        }
     samples = np.frombuffer(data, dtype=config["np_format"])[::2]
     is_silent = np.max(np.abs(samples)) < 100
 
@@ -200,8 +217,9 @@ def run(engine_data, loop_func):
             debug and stage_timer.stop("loop_func")
             sys.stdout.flush()
             debug and stage_timer.start("sleep")
-            time_left = (1 / engine_data["fps"]) - stage_timer.get_global_time()
-            time.sleep(max(time_left, 0))
+            if not proc_output['is_silent']:
+                time_left = (1 / engine_data["fps"]) - stage_timer.get_global_time()
+                time.sleep(max(time_left, 0))
             debug and stage_timer.stop("sleep")
             debug and stage_timer.global_stop()
     except KeyboardInterrupt:
