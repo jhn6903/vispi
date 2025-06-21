@@ -7,7 +7,11 @@ import time
 from common import engine
 
 # === SETUP ===
-engine_data = engine.initialize()
+engine_data = engine.initialize(
+    interface_type="focusrite2i4",
+    processor_type="default",
+    debug=False
+)
 cols = engine_data["cols"]
 rows = engine_data["rows"]
 
@@ -43,4 +47,4 @@ def main_loop(data):
     
 
 # === RUN ===
-engine.run(engine_data, main_loop, fps=30)
+engine.run(engine_data, main_loop)
