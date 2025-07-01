@@ -1,11 +1,20 @@
 import numpy as np
 import pyaudio
 import random
-import time
 import sys
 import shutil
+import time
+import os
 from scipy.ndimage import median_filter
 from typing import Tuple, List
+from common import engine
+
+# === Initialize Engine ===
+engine_data = engine.initialize(
+    interface_type="focusrite2i4",
+    processor_type="default",
+    debug=True
+)
 
 cell_chars = ['█', '▓', '▒', '░']
 
@@ -112,10 +121,10 @@ def get_position_from_fft(fft: np.ndarray, width: int, height: int) -> Tuple[int
     exp_fft = exp_fft / np.sum(exp_fft)  # Normalize to sum to 1
     
     # Choose a frequency bin based on its energy
-    chosen_bin = np.random.choice(64, p=exp_fft)
+    chosen_bin = np.random.choice(len(fft), p=exp_fft)
     
-    # Map bin number (0-63) to radius (0 = center, 1 = edge)
-    radius_factor = chosen_bin / 63.0
+    # Map bin number to radius (0 = center, 1 = edge)
+    radius_factor = chosen_bin / (len(fft) - 1)
     
     # Get random angle
     angle = random.random() * 2 * np.pi
@@ -187,72 +196,11 @@ def generate_pattern(grid: List[List[int]], fft: np.ndarray = None) -> None:
             grid[y + dy][x + dx] = pattern[dy][dx]
 
 
-# === AUDIO CONFIG ===
-CHUNK = 1024
-RATE = 48000
-FORMAT = pyaudio.paInt16
-CHANNELS = 2
-INPUT_INDEX = None
-
-# === TERMINAL CONFIG ===
-def get_terminal_size():
-    return shutil.get_terminal_size(fallback=(80, 24))
-
-cols, rows = get_terminal_size()
-RESET = "\033[0m"
-
-# === COLORS ===
-colors = [
-    "\033[91m", "\033[92m", "\033[93m",
-    "\033[94m", "\033[95m", "\033[96m"
-]
-
-
-
-def get_low_energy(fft):
-    """Extracts the kick energy from the FFT."""
-    return int(np.mean(fft[:8]) * 100)
-
-def get_high_energy(fft):
-    """Extracts the hi-hat energy from the FFT."""
-    return fft[-32]
-
-def get_total_energy(fft):
-    """Get total energy across all frequency bands."""
-    return np.mean(fft)
-
 def get_grid_density(grid):
     """Calculate the density of live cells in the grid."""
     total_cells = len(grid) * len(grid[0])
     live_cells = sum(sum(row) for row in grid)
     return (live_cells / total_cells) * 100
-
-mantra = "Let the Making It Happen Happen"
-
-# === AUDIO SETUP ===
-p = pyaudio.PyAudio()
-for i in range(p.get_device_count()):
-    dev_info = p.get_device_info_by_index(i)
-    if 'BlackHole' in dev_info['name']:
-        INPUT_INDEX = i
-        break
-if INPUT_INDEX is None:
-    raise RuntimeError("BlackHole device not found!")
-stream = p.open(format=FORMAT,
-                channels=CHANNELS,
-                rate=RATE,
-                input=True,
-                input_device_index=INPUT_INDEX,
-                frames_per_buffer=CHUNK)
-
-prev_fft = np.zeros(64)
-SMOOTHING = 0.5
-
-# Initialize Conway's Game of Life grid
-cols, rows = get_terminal_size()
-# Reduce grid height by 2 to make room for status lines
-grid = create_grid(width=cols-2, height=rows-3)
-patterns_generated = 0
 
 def display_status(kick_val: int, hat_val: float, total_energy: float, patterns_generated: int, fft: np.ndarray):
     """Display status line at the bottom of the terminal."""
@@ -277,78 +225,84 @@ def display_status(kick_val: int, hat_val: float, total_energy: float, patterns_
     # Display status line
     print(f"\033[{terminal_height};0H", end='')
     print("\033[K", end='')
-    status = f"Kick: {kick_val:3d} | Hat: {hat_val:.2f} | Energy: {total_energy:.2f} | Density: {get_grid_density(grid):.2f} | Patterns: {patterns_generated}"
+    density = get_grid_density(grid)
+    status = f"Kick: {kick_val:3d} | Hat: {hat_val:.2f} | Energy: {total_energy:.2f} | Density: {density:.2f} | Patterns: {patterns_generated}"
     print(status, end='', flush=True)
 
+# === STATE ===
+# Initialize Conway's Game of Life grid
+cols, rows = get_terminal_size()
+# Reduce grid height by 2 to make room for status lines
+grid = create_grid(width=cols-2, height=rows-3)
 
-# === MAIN LOOP ===
+state = {
+    "patterns_generated": 0,
+    "grid": grid
+}
+
+
+# === Main Loop Function ===
+def main_loop(data):
+    """Main Conway's Game of Life loop that receives processed audio data from engine"""
+    
+    if data["is_silent"]:
+        # Continue evolution even during silence, but don't generate new patterns
+        state["grid"] = next_generation(state["grid"])
+        display_grid(state["grid"], use_color=False)
+        return
+
+    # Get processed audio data from engine
+    fft = data["fft"]  # Already processed and normalized by engine
+    total_energy = data["total_energy"]
+    low_energy = data["low_energy"]
+    high_energy = data["high_energy"]
+
+    # Convert engine's normalized values back to our expected ranges
+    lo_energy = int(low_energy * 100)  # Convert 0-1 to 0-100 range
+    hi_energy = high_energy
+    
+    density = get_grid_density(state["grid"])
+    density_factor = 0.5
+    energy_factor = 10
+    
+    # Probabilistic mass extinction based on energy and density
+    # extinction_probability = np.clip(density*density_factor - total_energy*energy_factor, 0, 1)
+    # if random.random() < extinction_probability:
+    #     height, width = len(state["grid"]), len(state["grid"][0])
+    #     for y in range(height):
+    #         for x in range(width):
+    #             # Skip cells at the boundaries
+    #             if x == 0 or x == width-1 or y == 0 or y == height-1:
+    #                 continue
+    #             center_x = width / 2
+    #             # Distance factor: 0 at center, 1 at edges
+    #             distance_factor = (abs(center_x - x) / center_x)**2
+    #             # Reduce death probability for cells far from center
+    #             death_probability = max(0, extinction_probability - distance_factor)
+    #             if random.random() < death_probability:
+    #                 state["grid"][y][x] = 0
+    
+    gen_coeff = 0.45
+    patterns_to_generate = int((data["kick_energy"] + data["snare_energy"] + data["hat_energy"]) * gen_coeff)
+    
+    # Generate patterns proportional to energy
+    for _ in range(patterns_to_generate):
+        generate_pattern(state["grid"], fft)
+        state["patterns_generated"] += 1
+
+    # Update and display the game state
+    use_color = data["kick_energy"] > 0.2
+    display_grid(state["grid"], use_color=use_color)
+    display_status(lo_energy, hi_energy, total_energy, state["patterns_generated"], fft)
+    state["grid"] = next_generation(state["grid"])
+    time.sleep(min(0.2 / engine_data["fps"], (0.4 / (engine_data["fps"])) * ((data["kick_energy"] + data["snare_energy"] + data["hat_energy"])/gen_coeff)))
+
+# === Run Engine ===
+print('\033[?25l', end='')  # Hide cursor
+print("[conway] Starting Conway's Game of Life with engine...")
 try:
-    print('\033[?25l', end='')  # Hide cursor
-    while True:
-        data = stream.read(CHUNK, exception_on_overflow=False)
-        samples = np.frombuffer(data, dtype=np.int16)
-        is_silent = np.max(np.abs(samples)) < 100
-
-        if is_silent:
-            time.sleep(1/30)
-            continue
-
-        # Calculate FFT
-        fft = np.abs(np.fft.fft(samples))[:64]
-        
-        # Apply frequency weighting (approximating A-weighting curve)
-        # Higher frequencies get progressively more emphasis
-        freq_weights = np.linspace(1.0, 2.5, 64)  # Linear increase from 1.0 to 2.5
-        fft = fft * freq_weights
-        
-        # Continue with existing processing
-        fft = median_filter(fft, size=3)
-        fft = fft / (np.max(fft) + 1e-6)
-        fft = SMOOTHING * prev_fft + (1 - SMOOTHING) * fft
-        prev_fft = fft.copy()
-
-        lo_energy = get_low_energy(fft)
-        hi_energy = get_high_energy(fft)
-        total_energy = get_total_energy(fft)
-        density = get_grid_density(grid)
-        density_factor = 0.5
-        energy_factor = 10
-        # Probabilistic mass extinction based on energy and density
-        extinction_probability = np.clip(density*density_factor - total_energy*energy_factor, 0, 1)
-        if random.random() < extinction_probability:
-            height, width = len(grid), len(grid[0])
-            for y in range(height):
-                for x in range(width):
-                    # Skip cells at the boundaries
-                    if x == 0 or x == width-1 or y == 0 or y == height-1:
-                        continue
-                    center_x = width / 2
-                    # Distance factor: 0 at center, 1 at edges
-                    distance_factor = (abs(center_x - x) / center_x)**2
-                    # Reduce death probability for cells far from center
-                    death_probability = max(0, extinction_probability - distance_factor)
-                    if random.random() < death_probability:
-                        grid[y][x] = 0
-        
-        patterns_to_generate = int((lo_energy / 100) * 5)
-        
-        # Generate patterns proportional to energy
-        for _ in range(patterns_to_generate):
-            generate_pattern(grid, fft)
-            patterns_generated += 1
-
-        # Update and display the game state
-        use_color = hi_energy > 0.10
-        display_grid(grid, use_color=use_color)
-        display_status(lo_energy, hi_energy, total_energy, patterns_generated, fft)
-        grid = next_generation(grid)
-        
-        time.sleep(0.01/total_energy)
-
+    engine.run(engine_data, main_loop)
 except KeyboardInterrupt:
     print('\033[?25h', end='')  # Show cursor
     print(RESET)
     print("\nVisualizer stopped.")
-    stream.stop_stream()
-    stream.close()
-    p.terminate()

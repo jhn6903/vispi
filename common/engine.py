@@ -74,27 +74,9 @@ def _get_processor(processor_type: str = "default"):
     else:
         raise ValueError(f"Processor {processor_type} not found")
 
-def _default_process_audio(stream, config, prev_fft):
+def _default_process_audio(stream, config, prev_fft, debug):
     SMOOTHING = 0.2
-
-    try:
-        data = stream.read(config["chunk_size"], exception_on_overflow=True)
-    except Exception as e:
-        print(f"Error reading audio stream: {e}")
-        if logger:
-            logger.error(f"Error reading audio stream: {e}")
-        return {
-            "is_silent": True,
-            "samples": np.zeros(config["chunk_size"]),
-            "fft": np.zeros(64),
-            "prev_fft": prev_fft,
-            "low_energy": 0,
-            "high_energy": 0,
-            "total_energy": 0,
-            "kick_energy": 0,
-            "snare_energy": 0,
-            "hat_energy": 0,
-        }
+    data = stream.read(config["chunk_size"], exception_on_overflow=debug)
     samples = np.frombuffer(data, dtype=config["np_format"])[::2]
     is_silent = np.max(np.abs(samples)) < 100
 
@@ -169,6 +151,16 @@ def _default_process_audio(stream, config, prev_fft):
         "hat_energy": hat_ratio,
     }
 
+    # if logger:
+    #     logger.info("=" * 25)
+    #     logger.info(f"Low energy: {low_energy}")
+    #     logger.info(f"High energy: {np.mean(fft[32:])}")
+    #     logger.info(f"Total energy: {np.mean(fft)}")
+    #     logger.info(f"Kick energy: {kick_energy_current}")
+    #     logger.info(f"Snare energy: {snare_energy_current}")
+    #     logger.info(f"Hat energy: {hat_energy_current}")
+    #     logger.info("=" * 25)
+
     return output
 
 def initialize(
@@ -209,7 +201,7 @@ def run(engine_data, loop_func):
         while True:
             stage_timer.global_start()
             debug and stage_timer.start("processor")
-            proc_output = processor(stream, config, prev_fft)
+            proc_output = processor(stream, config, prev_fft, debug)
             debug and stage_timer.stop("processor")
             prev_fft = proc_output["prev_fft"]
             debug and stage_timer.start("loop_func")
