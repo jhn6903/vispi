@@ -5,26 +5,7 @@ import random
 import os
 import signal
 import sys
-
-# === Log Setup ===
-LOGFILE = "/tmp/vis_log.txt"
-def log(msg):
-    ts = time.strftime("[%Y-%m-%d %H:%M:%S]")
-    line = f"{ts} {msg}"
-    with open(LOGFILE, "a") as f:
-        f.write(line + "\n")
-    print(line, flush=True)
-
-# === Discover Visualizers ===
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-ALL_SCRIPTS = [f for f in os.listdir(SCRIPT_DIR)
-               if f.endswith('.py') and f != os.path.basename(__file__)]
-# Ensure maintest.py included if present
-if 'maintest.py' not in ALL_SCRIPTS and os.path.exists(os.path.join(SCRIPT_DIR, 'maintest.py')):
-    ALL_SCRIPTS.append('maintest.py')
-
-# Remove any non-existent entries
-VISUALIZERS = [s for s in ALL_SCRIPTS if os.path.isfile(os.path.join(SCRIPT_DIR, s))]
+from common.config import supported_visualizers
 
 # Interval settings (in seconds)
 MIN_INTERVAL = 5

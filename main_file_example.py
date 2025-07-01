@@ -4,16 +4,17 @@ Ultra-Simple Engine Example
 """
 
 import time
-from common import engine
+from common.engine import AudioEngine
 
 # === SETUP ===
-engine_data = engine.initialize(
+engine = AudioEngine()
+engine.initialize(
     interface_type="focusrite2i4",
     processor_type="default",
     debug=False
 )
-cols = engine_data["cols"]
-rows = engine_data["rows"]
+cols = engine.cols
+rows = engine.rows
 
 # === STATE ===
 state = {
@@ -47,4 +48,4 @@ def main_loop(data):
     
 
 # === RUN ===
-engine.run(engine_data, main_loop)
+engine.run(main_loop)

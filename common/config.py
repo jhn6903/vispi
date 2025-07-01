@@ -2,6 +2,7 @@ import shutil
 import pyaudio
 import numpy as np
 
+supported_visualizers = ["fftv_pat", "routercore4", "conway", "bilbo3", "debug_energy"]
 possible_chunk_sizes = [1024, 2048, 4096, 8192, 16384]
 
 # === Audio Configuration ===
