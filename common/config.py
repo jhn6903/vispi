@@ -30,3 +30,7 @@ interface_configs = {
 # === FFT Processing ===
 SMOOTHING = 0.5
 FFT_SIZE = 64
+
+# === random loop settings ===
+min_frames = 23 * 1
+max_frames = 23 * 2

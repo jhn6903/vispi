@@ -7,10 +7,11 @@ import time
 import os
 from scipy.ndimage import median_filter
 from typing import Tuple, List
-from common import engine
+from common.engine import AudioEngine
 
 # === Initialize Engine ===
-engine_data = engine.initialize(
+engine = AudioEngine()
+engine.initialize(
     interface_type="focusrite2i4",
     processor_type="default",
     debug=True
@@ -295,13 +296,13 @@ def main_loop(data):
     display_grid(state["grid"], use_color=use_color)
     display_status(lo_energy, hi_energy, total_energy, state["patterns_generated"], fft)
     state["grid"] = next_generation(state["grid"])
-    time.sleep(min(0.2 / engine_data["fps"], (0.4 / (engine_data["fps"])) * ((data["kick_energy"] + data["snare_energy"] + data["hat_energy"])/gen_coeff)))
+    time.sleep(min(0.2 / engine.fps, (0.4 / engine.fps) * ((data["kick_energy"] + data["snare_energy"] + data["hat_energy"])/gen_coeff)))
 
 # === Run Engine ===
 print('\033[?25l', end='')  # Hide cursor
 print("[conway] Starting Conway's Game of Life with engine...")
 try:
-    engine.run(engine_data, main_loop)
+    engine.run(main_loop)
 except KeyboardInterrupt:
     print('\033[?25h', end='')  # Show cursor
     print(RESET)

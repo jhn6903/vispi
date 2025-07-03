@@ -8,6 +8,13 @@ A collection of Python scripts for Raspberry Pi that react to audio input, drawi
 
 ---
 
+## Files relevant to engine refactor:
+- common dir
+- conway.py
+- fftv_pat.py
+- routercore4.py
+- 
+
 ## 📋 Table of Contents
 1. [Features](#features)
 2. [Prerequisites](#prerequisites)

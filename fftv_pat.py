@@ -11,10 +11,11 @@ import os
 import random
 import colorsys
 import shutil
-from common import engine
+from common.engine import AudioEngine
 
 # === Initialize Engine ===
-engine_data = engine.initialize(
+engine = AudioEngine()
+engine.initialize(
     interface_type="focusrite2i4",
     processor_type="default",
     debug=False
@@ -180,8 +181,9 @@ def main_loop(data):
     print("\033[0m")
 
 # === Run Engine ===
-print("[fftv_pat] Starting electric circus with engine...")
-try:
-    engine.run(engine_data, main_loop)
-except KeyboardInterrupt:
-    print("\nVisualizer terminated.")
+if __name__ == "__main__":
+    print("[fftv_pat] Starting electric circus with engine...")
+    try:
+        engine.run(main_loop)
+    except KeyboardInterrupt:
+        print("\nVisualizer terminated.")

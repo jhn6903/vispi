@@ -7,8 +7,9 @@ import os
 from datetime import datetime
 from scipy.ndimage import median_filter
 import sys
-from .config import interface_configs, FFT_SIZE, SMOOTHING, possible_chunk_sizes
+from .config import interface_configs, FFT_SIZE, SMOOTHING, possible_chunk_sizes, min_frames, max_frames
 from collections import defaultdict
+import random
 
 # Logger will be initialized conditionally
 logger = None
@@ -222,15 +223,16 @@ class AudioEngine:
 
         return output
     
-    def run(self, loop_func):
+    def run(self, loop_func, loop=False):
         """Run the main audio processing loop"""
         global logger
+        self.frames_left = random.randint(min_frames, max_frames)
         stage_timer = StageDebugTimer()
         if logger:
             logger.info("Starting audio engine main loop")
             
         try:
-            while True:
+            while self.frames_left > 0 or not loop:
                 stage_timer.global_start()
                 self.debug and stage_timer.start("processor")
                 proc_output = self.processor(self.stream, self.config, self.prev_fft, self.debug)
@@ -246,6 +248,8 @@ class AudioEngine:
                     time.sleep(max(time_left, 0))
                 self.debug and stage_timer.stop("sleep")
                 self.debug and stage_timer.global_stop()
+                self.frames_left -= 1
+                self.debug and logger.info(f"Frames left: {self.frames_left}")
         except KeyboardInterrupt:
             print("Keyboard interrupt")
         finally:
